@@ -14,6 +14,7 @@ from mani_skill.utils.registration import register_env
 from mani_skill.utils.scene_builder.table import TableSceneBuilder
 from mani_skill.utils.structs import Actor, Pose
 from mani_skill.utils.structs.types import SimConfig
+from mani_skill.utils.wrappers.record import RecordEpisode
 
 
 ITEMS_LIST = [
@@ -26,7 +27,7 @@ ITEMS_LIST = [
 ]
 
 
-@register_env("SimpleTableTop-v1", max_episode_steps=5000)
+@register_env("SimpleTableTop-v1", max_episode_steps=200)
 class SimpleTableTopEnv(BaseEnv):
 
     SUPPORTED_ROBOTS = ["panda"]
@@ -107,8 +108,10 @@ def main() -> int:
         num_envs=1,
         obs_mode="state",
         control_mode="pd_ee_delta_pose",
-        render_mode="human",
+        render_mode="rgb_array",
     )
+
+    env = RecordEpisode(env, output_dir="recordings")
 
     obs, _ = env.reset(seed=0)
     done = False
