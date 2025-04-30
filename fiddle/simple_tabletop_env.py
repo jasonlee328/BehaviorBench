@@ -1,3 +1,4 @@
+import argparse
 from typing import Any, Dict, Union
 
 import gymnasium as gym
@@ -10,20 +11,31 @@ from mani_skill.envs.sapien_env import BaseEnv
 from mani_skill.sensors.camera import CameraConfig
 from mani_skill.utils import common, sapien_utils
 from mani_skill.utils.building import actors
+from mani_skill.utils.building.actor_builder import ActorBuilder
 from mani_skill.utils.registration import register_env
 from mani_skill.utils.scene_builder.table import TableSceneBuilder
 from mani_skill.utils.structs import Actor, Pose
 from mani_skill.utils.structs.types import SimConfig
 from mani_skill.utils.wrappers.record import RecordEpisode
 
+import objaverse
 
-ITEMS_LIST = [
+
+ITEMS_YCB_LIST = [
     "003_cracker_box",
     "004_sugar_box",
     "005_tomato_soup_can",
     "006_mustard_bottle",
     "007_tuna_fish_can",
     "008_pudding_box",
+]
+
+ITEMS_OBJAVERSE_LIST = [
+    # "8476c4170df24cf5bbe6967222d1a42d",
+    "8ff7f1f2465347cd8b80c9b206c2781e",
+    # "c786b97d08b94d02a1fa3b87d2e86cf1",
+    # "139331da744542009f146018fd0e05f4",
+    # "be2c02614d774f9da672dfdc44015219",
 ]
 
 
@@ -72,14 +84,35 @@ class SimpleTableTopEnv(BaseEnv):
         )
         self.table_scene.build()
 
-        for item_id in ITEMS_LIST:
-            builder = self._load_model(item_id)
+        for item_id in ITEMS_YCB_LIST:
+            builder = self._load_model_ycb(item_id)
             x, y = np.random.uniform(-0.2, 0.2, size=2)
             builder.initial_pose = sapien.Pose(p=[x, y, 0.1])
             builder.build(name=f"ycb-model-{item_id}")
 
-    def _load_model(self, model_id):
+        # Load models from Objaverse
+        objs_cache = objaverse.load_objects(ITEMS_OBJAVERSE_LIST)
+        for _, obj_path in objs_cache.items():
+            builder = self._load_model_objaverse(obj_path)
+            x, y = np.random.uniform(-0.2, 0.2, size=2)
+            builder.initial_pose = sapien.Pose(p=[x, y, 0.7])
+            builder.build(name=f"objaverse-model-{obj_path}")
+
+    def _load_model_ycb(self, model_id) -> ActorBuilder:
         builder = actors.get_actor_builder(self.scene, id=f"ycb:{model_id}")
+        return builder
+
+    def _load_model_objaverse(self, model_path) -> ActorBuilder:
+        scale = 0.1
+        builder = self.scene.create_actor_builder()
+        builder.add_visual_from_file(filename=model_path, scale=(scale,) * 3)
+        builder.add_multiple_convex_collisions_from_file(
+            filename=model_path,
+            decomposition="coacd",
+            density=1000,
+            material=None,
+            scale=(scale,) * 3,
+        )
         return builder
 
     def _initialize_episode(self, env_idx: torch.Tensor, options: dict):
@@ -103,15 +136,32 @@ class SimpleTableTopEnv(BaseEnv):
 
 
 def main() -> int:
+    np.random.seed(0)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="Flag used to record a video",
+    )
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Flag used to run the environment in headless mode",
+    )
+
+    args = parser.parse_args()
+
     env = gym.make(
         "SimpleTableTop-v1",
         num_envs=1,
         obs_mode="state",
         control_mode="pd_ee_delta_pose",
-        render_mode="rgb_array",
+        render_mode="human" if not args.headless else "rgb_array",
     )
 
-    env = RecordEpisode(env, output_dir="recordings")
+    if args.record:
+        env = RecordEpisode(env, output_dir="recordings")
 
     obs, _ = env.reset(seed=0)
     done = False
