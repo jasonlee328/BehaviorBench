@@ -2,3 +2,4 @@ mani_skill
 torch
 objaverse
 coacd
+hydra-core

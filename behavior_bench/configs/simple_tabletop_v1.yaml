@@ -1,0 +1,24 @@
+
+robot:
+  type: panda
+  position: [-0.615, 0, 0]
+  euler: [0, 0, 0]
+objects:
+  - type: primitive
+    id: box
+    position: [0, 0, 0.05]
+    euler: [0, 0, 0]
+  - type: primitive
+    id: cylinder
+    position: [-0.1, 0, 0.05]
+    euler: [0, 0, 0]
+  - type: ycb
+    id: 011_banana
+    position: [-0.2, 0.0, 0.05]
+  - type: ycb
+    id: 013_apple
+    position: [-0.2, 0.2, 0.05]
+  - type: ycb
+    id: 017_orange
+    position: [-0.2, -0.2, 0.05]
+
