@@ -18,6 +18,8 @@ from mani_skill.utils.structs.actor import Actor
 from mani_skill.utils.structs.pose import Pose
 from mani_skill.utils.structs.types import SimConfig
 
+from behavior_bench import ASSETS_DIR
+
 
 @register_env("BaseTableTop-v1", max_episode_steps=2000, asset_download_ids=["ycb"])
 class BaseTableTopEnv(BaseEnv):
@@ -114,8 +116,13 @@ class BaseTableTopEnv(BaseEnv):
                     actor = self._load_ycb(
                         obj_id, obj_position, obj_euler
                     )
+                elif obj_type == "simpler":
+                    actor = self._load_simpler(
+                        obj_id, obj_position, obj_euler
+                    )
 
                 if actor:
+                    self._count_actors += 1
                     self._actors.append(actor)
 
 
@@ -135,7 +142,6 @@ class BaseTableTopEnv(BaseEnv):
                 name=f"sphere_{self._count_actors}",
                 initial_pose=sapien.Pose(p=pos, q=quat),
             )
-            self._count_actors += 1
         elif type == "box":
             actor = actors.build_box(
                 self.scene,
@@ -165,3 +171,19 @@ class BaseTableTopEnv(BaseEnv):
         builder = actors.get_actor_builder(self.scene, id=f"ycb:{model_id}")
         builder.initial_pose = sapien.Pose(p=position, q=quat)
         return builder.build(name=f"ycb-model-{model_id}-{self._count_actors}")
+
+    def _load_simpler(
+        self,
+        model_id: str,
+        position: List[float],
+        euler: List[float],
+    ) -> Actor:
+        vis_mesh_file = ASSETS_DIR / model_id / "textured.dae"
+        col_mesh_file = ASSETS_DIR / model_id / "collision.obj"
+        quat = R.from_euler('xyz', euler, degrees=True).as_quat(scalar_first=True)
+
+        builder = self.scene.create_actor_builder()
+        builder.add_visual_from_file(filename=str(vis_mesh_file.resolve()))
+        builder.add_convex_collision_from_file(filename=str(col_mesh_file.resolve()))
+        builder.initial_pose = sapien.Pose(p=position, q=quat)
+        return builder.build(name=f"simpler-{model_id}-{self._count_actors}")
